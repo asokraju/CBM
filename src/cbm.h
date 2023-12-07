@@ -148,17 +148,30 @@ namespace cbm
                     {
                         // TODO: check if a bin is empty. might be better to remap/exclude the bins?
                         if (y_sum[j][k])
-                        {
-                            // improve stability
-                            double g = (double)y_sum[j][k] / y_hat_sum[j][k]; // eqn. 2 (a)
+                        {   
+                            // Regularization
+                            // improve stability using eqn. (5) and (6)
+                            double alpha_posterior = 2.0 + y_sum[j][k];
+                            double beta_posterior = 1.67834 + y_hat_sum[j][k];
 
-                            // magic numbers found in Regularization section (worsen it quite a bit)
-                            // double g = (2.0 * y_sum[j][k]) / (1.67834 * y_hat_sum[j][k]); // eqn. 2 (a)
+                            // computing factors using eqn. (2b)
+                            double g = alpha_posterior / beta_posterior
+
+                            // Smoothing
+                            // finding the uncertainity using eqn. (8)
+                            // Assuming link function is log
+                            double link_func_alpha_posterior = std::log(alpha_posterior);
+                            double link_func_alpha_plus_one = std::log(1 + alpha_posterior);
+                            double uncertainity = std::sqrt(link_func_alpha_plus_one - link_func_alpha_posterior);
+                            // transforming the factors using the link function and scaling
+                            double ln_g = std::log(g);
+                            double ln_g_rescaled = ln_g / uncertainity;
 
                             if (learning_rate == 1)
                                 _f[j][k] *= g;
                             else
-                                _f[j][k] *= std::exp(learning_rate * std::log(g)); // eqn 2 (b) + eqn 4
+                                // eqn 2 (b) + eqn 4
+                                _f[j][k] *= std::exp(learning_rate * ln_g_rescaled);
 
                             if (!single_update_per_iteration) {
                                 update_y_hat_sum(y_hat, y_hat_sum, x, n_examples, n_features);
